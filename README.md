@@ -4,8 +4,7 @@ youda.py
 
 ## How to setup ##
 
-  - download this script to your computer, then
-    change download path and listen port, if you want
+  - download this script to your computer
   - install youtube-dl 
     on a Mac: brew install youtube-dl
     on any OS: sudo pip install --upgrade youtube_dl
@@ -15,9 +14,11 @@ youda.py
     http://localhost:8012/q=%s
     where "%s" is the variable name for the selected URL
 
+
 ## How to use ##
-  - start this script in a shell window
+  - start this script in a shell window:
+    youda.py 8009 ~/Downloads/youtube
   - in your browser, right-click in a YouTube link and
     select custom context menu item you've added
-  - this script will catch the URL and pass it to youtube-dl
-  - do not abort the script until it finish
+  - this script will catch the URL and call youtube-dl with it
+  - do not abort the script until it finishes
