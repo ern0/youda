@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#clear ; youda.py 8009 ~/Downloads/youtube ; exit
+clear ; youda.py 8009 ~/Downloads/youtube ; exit
 
 if [[ -z `tmux ls | grep youda` ]]; then
 	tmux new -d -s youda "youda.py 8009 ~/Downloads/youtube; cat"
