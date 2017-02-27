@@ -10,8 +10,6 @@ from threading import *
 import queue
 
 
-# youtube-dl https://www.youtube.com/watch?v=fMt2yfRYEmw --exec "mv {} 01-{}"
-
 class Youda(Thread):
 
 
@@ -90,8 +88,15 @@ How to use:
 
 	def run(self):
 		while True:
-			item = self.queue.get(block=True)
-			print(item)
+			
+			(numero,url) = self.queue.get(block=True)
+
+			cmd = "youtube-dl \"<url>\" --exec \"mv {} <path>/<num>-{}\"" 
+			cmd = cmd.replace("<path>",self.dir)
+			cmd = cmd.replace("<url>",url)
+			cmd = cmd.replace("<num>",str(numero).zfill(3))
+
+			os.system(cmd)
 
 
 	def enqueue(self,url):
