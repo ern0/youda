@@ -2,12 +2,17 @@
 
 import sys
 import os
+import time
 from subprocess import Popen,PIPE
+from http.server import BaseHTTPRequestHandler,HTTPServer
+from urllib import parse
+from threading import *
+import queue
 
 
 # youtube-dl https://www.youtube.com/watch?v=fMt2yfRYEmw --exec "mv {} 01-{}"
 
-class Youda:
+class Youda(Thread):
 
 
 	def about(self):
@@ -83,6 +88,24 @@ How to use:
 		self.number += 1
 
 
+	def run(self):
+		while True:
+			item = self.queue.get(block=True)
+			print(item)
+
+
+	def enqueue(self,url):
+		num = self.number
+
+		if url in self.dupe: return (True,self.dupe[url])
+
+		self.dupe[url] = num
+		self.queue.put((num,url))
+
+		self.number += 1
+		return (False,num)
+
+
 	def main(self):
 
 		try: self.port = int(sys.argv[1])
@@ -99,6 +122,44 @@ How to use:
 		print("   dir: " + self.dir)
 		print(" start: " + str(self.number).zfill(3))
 
+		self.queue = queue.Queue()
+		self.dupe = {}
+		self.setDaemon(True)		
+		self.start()
+
+		httpd = HTTPServer(("0.0.0.0",self.port),YoudaRequestHandler)
+		httpd.theServer = self
+		httpd.serve_forever()
+
+
+class YoudaRequestHandler(BaseHTTPRequestHandler):
+
+
+	def log_message(self,format,*args):
+		pass
+
+
+	def do_GET(self):
+
+		self.send_response(200)
+
+		self.send_header("Content-type","text/html")
+		self.end_headers()
+
+		url = self.path.replace("?","&")
+		if url.find("&q=") == -1: return
+		url = url.split("&q=")[1]
+		url = parse.unquote(url)
+
+		(already,numero) = self.server.theServer.enqueue(url)
+
+		if already:
+			message = "<h3>Already added, numero=" + str(numero) + "</h3>\n"
+		else:
+			message = "<h3>Added to download queue, numero=" + str(numero) + "</h3>\n"
+		self.wfile.write(bytes(message,"utf8"))
+
 
 if __name__ == '__main__':
 	(Youda()).main()
+
