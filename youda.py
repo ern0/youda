@@ -5,11 +5,17 @@ import os
 from subprocess import Popen,PIPE
 
 
+# youtube-dl https://www.youtube.com/watch?v=fMt2yfRYEmw --exec "mv {} 01-{}"
+
 class Youda:
 
-	def help(self):
-		print("""youda.py - Youtube Downloader Automation - 2017.02.27
 
+	def about(self):
+		print("youda.py - Youtube Downloader Automation - 2017.02.27")
+
+
+	def help(self):
+		print("""
 How to setup:
   - download this script to your computer, then
     change download path and listen port, if you want
@@ -30,6 +36,8 @@ How to use:
   - do not abort the script until it finish
 			"""
 		)
+		sys.exit(0)
+
 
 	def fatal(self,msg):
 		print(msg)
@@ -49,17 +57,47 @@ How to use:
 		self.fatal("you need to install youtube-dl")
 
 
+	def discoverDownloadDirectory(self):
+
+		for self.dir in ["~/Downloads","~/Download","~/downloads","~/download","~"]:
+			if not os.path.isdir(self.dir): continue
+			self.dir += "/youtube"
+			os.makedirs(self.dir)
+			if not os.path.isdir(self.dir): continue
+			print("Download directory: " + self.dir)
+			return
+
+		fatal("Can't create download directory")
+
+
+	def discoverNumero(self):
+
+		self.number = 0
+		for fnam in os.listdir(self.dir):
+			try:
+				if fnam[3] != "-": continue
+				n = int(fnam.split("-")[0])
+			except: 
+				continue
+			if n > self.number: self.number = n
+		self.number += 1
+
+
 	def main(self):
 
-		try: 
-			if sys.argv[1] == "-h":
-				self.help()
-				sys.exit(0)
-		except:
-			pass
+		try: self.port = int(sys.argv[1])
+		except: self.help()
+		if self.port == 0: self.help()
 
 		self.checkYoutubeDl()
+		try: self.dir = sys.argv[2]
+		except: self.discoverDownloadDirectory()
+		self.discoverNumero()
 
+		self.about()
+		print("  port: " + str(self.port))
+		print("   dir: " + self.dir)
+		print(" start: " + str(self.number).zfill(3))
 
 
 if __name__ == '__main__':
