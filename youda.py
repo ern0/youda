@@ -14,32 +14,48 @@ class Youda(Thread):
 
 
 	def about(self):
-		print("youda.py - Youtube Downloader Automation - 2017.02.27")
+		print("youda.py - Youtube Downloader Automation - 2017.02.28")
 
 
 	def help(self):
-		print("""
-How to setup:
+
+		self.about()
+
+		text = ("""
+## How to setup ##
   - download this script to your computer
-  - install youtube-dl 
-    on a Mac: brew install youtube-dl
+  - install youtube-dl <br />
+    on a Mac: brew install youtube-dl <br />
     on any OS: sudo pip install --upgrade youtube_dl
-  - install a context-menu extension in your browser
+  - install a context-menu extension in your browser <br />
     e.g. Context Menus for Chrome https://goo.gl/8hgwuB
-  - add a custom action for links, which sends the URL to
-    http://localhost:8012/q=%s
+  - add a custom action for links, which sends the URL to <br />
+    http://localhost:8009/q=%s <br />
     where "%s" is the variable name for the selected URL
 
-How to use:
-  - start this script in a shell window:
-    youda.py 8009 ~/Downloads/youtube
-  - in your browser, right-click in a YouTube link and
+## How to use ##
+  - start this script in a shell window: <br />
+      youda.py <port> [<download-dir> [<check-dir> [<check-dir>...]]] <br />
+    example:
+      youda.py 8009 ~/Downloads/youtube /media/nexus7/storage/sdcard0/Podcasts/ <br />
+    If you specify download-dirs, duplications will be also <br />
+    checked in these directories
+  - in your browser, right-click in a YouTube link and <br />
     select custom context menu item you've added
   - this script will catch the URL and call youtube-dl with it
   - do not abort the script until it finishes
 			"""
 		)
+
+		text = text.replace("##","")
+		text = text.replace("<br />","")
+		print(text)
 		sys.exit(0)
+
+
+	def __init__(self):
+		Thread.__init__(self)
+		self.queue = queue.Queue()
 
 
 	def fatal(self,msg):
@@ -73,19 +89,6 @@ How to use:
 		fatal("Can't create download directory")
 
 
-	def discoverNumero(self):
-
-		self.number = 0
-		for fnam in os.listdir(self.dir):
-			try:
-				if fnam[3] != "-": continue
-				n = int(fnam.split("-")[0])
-			except: 
-				continue
-			if n > self.number: self.number = n
-		self.number += 1
-
-
 	def run(self):
 		while True:
 			
@@ -100,41 +103,158 @@ How to use:
 
 
 	def enqueue(self,url):
-		num = self.number
+		num = self.numero
 
 		if url in self.dupe: return (True,self.dupe[url])
 
 		self.dupe[url] = num
 		self.queue.put((num,url))
 
-		self.number += 1
+		self.numero += 1
 		return (False,num)
 
 
-	def main(self):
-
+	def setupPort(self):
 		try: self.port = int(sys.argv[1])
 		except: self.help()
 		if self.port == 0: self.help()
 
-		self.checkYoutubeDl()
+
+	def setupDir(self):
 		try: self.dir = sys.argv[2]
 		except: self.discoverDownloadDirectory()
-		self.discoverNumero()
 
-		self.about()
+
+	def setupDupe(self):
+
+		self.dupeDirs = []
+		self.addDupe(self.dir)
+
+		arg = 3
+		while True:
+			try: dupeDir = sys.argv[arg]
+			except: break
+			self.addDupe(dupeDir)
+			arg += 1
+
+		self.rebuildDupe()
+
+
+	def addDupe(self,dir):
+		for dupe in self.dupeDirs:
+			if dir == dupe: return
+		self.dupeDirs.append(dir)
+
+
+	def discoverNumero(self):
+		self.numero = 0
+		self.scanDirs("numero")
+		self.numero += 1
+
+
+	def rebuildDupe(self):
+		self.dupe = {}
+		self.scanDirs("dupe")
+
+
+	def scanDirs(self,action):
+
+		for dir in self.dupeDirs:
+			for fnam in os.listdir(self.dir):
+				(name,ext) = os.path.splitext(fnam)
+				if name == "": continue
+				if ext == "": continue
+				if action == "dupe": 
+					item = Item()
+					item.setName(fnam,True)
+					self.addDupeItem(item)
+				if action == "numero": 
+					self.checkNumeroItem(fnam)
+
+
+	def checkNumeroItem(self,fnam):
+
+		try:
+			if fnam[3] != "-": return
+			n = int(fnam.split("-")[0])
+		except: 
+			return
+
+		if n > self.numero: self.numero = n
+
+
+	def addDupeItem(self,item):
+		pass
+		#todo
+
+
+	def status(self):
 		print("  port: " + str(self.port))
 		print("   dir: " + self.dir)
-		print(" start: " + str(self.number).zfill(3))
+		i = 0
+		for dupe in self.dupeDirs:
+			if dupe == self.dir: continue
+			if i == 0: print("  dupe: " + dupe)
+			else: print("        " + dupe)
+			i += 1
+		print(" start: " + str(self.numero).zfill(3))
 
-		self.queue = queue.Queue()
-		self.dupe = {}
+
+	def main(self):
+
+		self.setupPort()
+		self.checkYoutubeDl()
+		self.setupDir()
+		self.setupDupe()
+		self.discoverNumero()
+		self.about()
+		self.status()
+
+		sys.exit(0)
+
 		self.setDaemon(True)		
 		self.start()
 
 		httpd = HTTPServer(("0.0.0.0",self.port),YoudaRequestHandler)
 		httpd.theServer = self
 		httpd.serve_forever()
+
+
+class Item:
+
+
+	def __item__(self):
+
+		self.name = None
+		self.title = None
+		self.numero = None
+		self.id = None
+
+
+	def setName(self,name,parseId = False):
+
+		self.name = name
+
+		if name[3] == "-":
+			self.numero = int(name[0:3])
+
+
+		# todo
+
+		self.dump()
+
+		if not parseId: return
+
+
+	def dump(self):
+
+		print("numero=",end="")
+		if self.numero is None: print("n.a.",end="")
+		else:	print(str(self.numero).zfill(3),end="")
+		print(" ",end="")
+		print(self.name,end="")
+		print()
+
 
 
 class YoudaRequestHandler(BaseHTTPRequestHandler):
