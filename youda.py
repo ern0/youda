@@ -237,10 +237,25 @@ class Item:
 
 		if name[3] == "-":
 			self.numero = int(name[0:3])
+			name = name[4:]
 
+		length = len(name)
+		dot = None
+		for pos in [3,4,5]:
+			if name[length - pos] == ".": dot = length - pos
+		if dot is not None: name = name[:dot]
 
-		# todo
+		length = len(name)
+		id = None
+		for pos in [11,12]:
+			if name[length - pos] == "-": id = length - pos
+		if id is not None: 
+			self.id = name[id + 1:]
+			self.title = name[:id]
+		else:
+			self.title = name
 
+		if name.find("mesterl") == -1: return
 		self.dump()
 
 		if not parseId: return
@@ -251,8 +266,17 @@ class Item:
 		print("numero=",end="")
 		if self.numero is None: print("n.a.",end="")
 		else:	print(str(self.numero).zfill(3),end="")
+
 		print(" ",end="")
+
+		print("id=",end="")
+		if self.id is None: print("n.a.",end="")
+		else:	print(self.id,end="")
+
+		print(" ",end="")
+
 		print(self.name,end="")
+
 		print()
 
 
