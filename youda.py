@@ -420,7 +420,7 @@ class Item:
 		length = len(name)
 		if name[-13:] == "-queued.youda": 
 			self.queued = True
-			self.id = name.split("-")[0]
+			self.id = name[:-13]
 			
 		else:
 
