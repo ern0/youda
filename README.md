@@ -15,7 +15,7 @@ youda.py
 
 ## How to use ##
   - start this script in a shell window: <br />
-      youda.py <port> [<download-dir> [<check-dir> [<check-dir>...]]] <br />
+      youda.py port [download-dir [check-dir [check-dir...]]] <br />
     example:
       youda.py 8009 ~/Downloads/youtube /media/nexus7/storage/sdcard0/Podcasts/ <br />
     If you specify download-dirs, duplications will be also <br />
