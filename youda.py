@@ -53,11 +53,6 @@ class Youda(Thread):
 		sys.exit(0)
 
 
-	def __init__(self):
-		Thread.__init__(self)
-		self.queue = queue.Queue()
-
-
 	def fatal(self,msg):
 		print(msg)
 		sys.exit(2)
@@ -76,44 +71,6 @@ class Youda(Thread):
 		self.fatal("you need to install youtube-dl")
 
 
-	def discoverDownloadDirectory(self):
-
-		for self.dir in ["~/Downloads","~/Download","~/downloads","~/download","~"]:
-			if not os.path.isdir(self.dir): continue
-			self.dir += "/youtube"
-			os.makedirs(self.dir)
-			if not os.path.isdir(self.dir): continue
-			print("Download directory: " + self.dir)
-			return
-
-		fatal("Can't create download directory")
-
-
-	def run(self):
-		while True:
-			
-			(numero,url) = self.queue.get(block=True)
-
-			cmd = "youtube-dl \"<url>\" --exec \"mv {} <path>/<num>-{}\"" 
-			cmd = cmd.replace("<path>",self.dir)
-			cmd = cmd.replace("<url>",url)
-			cmd = cmd.replace("<num>",str(numero).zfill(3))
-
-			os.system(cmd)
-
-
-	def enqueue(self,url):
-		num = self.numero
-
-		if url in self.dupe: return (True,self.dupe[url])
-
-		self.dupe[url] = num
-		self.queue.put((num,url))
-
-		self.numero += 1
-		return (False,num)
-
-
 	def setupPort(self):
 		try: self.port = int(sys.argv[1])
 		except: self.help()
@@ -125,92 +82,172 @@ class Youda(Thread):
 		except: self.discoverDownloadDirectory()
 
 
-	def setupDupe(self):
+	def discoverDownloadDirectory(self):
 
-		self.dupeDirs = []
-		self.addDupe(self.dir)
+		for self.dir in ["~/Downloads","~/Download","~/downloads","~/download","~"]:
+			if not os.path.isdir(self.dir): continue
+			self.dir += "/youtube"
+			os.makedirs(self.dir)
+			if not os.path.isdir(self.dir): continue
+			return
 
-		arg = 3
+		fatal("Can't create download directory")
+
+
+	def setupCheck(self):
+
+		self.checkDirs = []
+
+		arg = 4
 		while True:
-			try: dupeDir = sys.argv[arg]
+			try: checkDir = sys.argv[arg]
 			except: break
-			self.addDupe(dupeDir)
+			self.addCheckDir(checkDir)
 			arg += 1
 
-		self.rebuildDupe()
+
+	def addCheckDir(self,checkDir):
+
+		for dir in self.checkDirs:
+			if checkDir == dir: return
+
+		self.checkDirs.append(checkDir)
 
 
-	def addDupe(self,dir):
-		for dupe in self.dupeDirs:
-			if dir == dupe: return
-		self.dupeDirs.append(dir)
+	def rescan(self):
 
+		self.queue = {}
+		self.check = {}
 
-	def discoverNumero(self):
+		for fnam in os.listdir(self.dir):
+			item = (Item()).buildFromName(fnam)
+			if item.isInvalid(): continue
+			self.queue[item.getId()] = item
+			self.check[item.getId()] = item
+
+		for dir in self.checkDirs:
+			for fnam in os.listdir(dir):
+				item = (Item()).buildFromName(fnam)
+				if item.isInvalid(): continue
+				self.check[item.getId()] = item
+			
 		self.numero = 0
-		self.scanDirs("numero")
+		for id in self.check:
+			item = self.check[id]
+			if item.getNumero() > self.numero: 
+				self.numero = item.getNumero()		
 		self.numero += 1
 
 
-	def rebuildDupe(self):
-		self.dupe = {}
-		self.scanDirs("dupe")
+	def findItem(self,id):
+		
+		try: return self.check[id]
+		except: pass
+		
+		return None
+		
 
+	def enqueue(self,item):
 
-	def scanDirs(self,action):
+		item.setNumero(self.numero)
+		self.numero += 1
 
-		for dir in self.dupeDirs:
-			for fnam in os.listdir(self.dir):
-				(name,ext) = os.path.splitext(fnam)
-				if name == "": continue
-				if ext == "": continue
-				if action == "dupe": 
-					item = Item()
-					item.setName(fnam,True)
-					self.addDupeItem(item)
-				if action == "numero": 
-					self.checkNumeroItem(fnam)
+		fnam = self.dir
+		fnam += "/"
+		fnam += str(item.getNumero()).zfill(3)
+		fnam += "-"
+		fnam += item.getId()
+		fnam += "-queued."
 
+		f = open(fnam + "tmp","w")
+		f.write("youda\n")
+		f.close()
+		
+		# make semaphore file creation atomic
+		os.rename(fnam + "tmp",fnam + "youda")
+		
 
-	def checkNumeroItem(self,fnam):
+	def run(self):
+		while True:
+			
+			time.sleep(1)
+			continue
 
-		try:
-			if fnam[3] != "-": return
-			n = int(fnam.split("-")[0])
-		except: 
-			return
+			## (numero,url) = self.queue.get(block=True)
 
-		if n > self.numero: self.numero = n
+			cmd = "youtube-dl \"<url>\" --exec \"mv {} <path>/<num>-{}\"" 
+			cmd = cmd.replace("<path>",self.dir)
+			cmd = cmd.replace("<url>",url)
+			cmd = cmd.replace("<num>",str(numero).zfill(3))
 
-
-	def addDupeItem(self,item):
-		pass
-		#todo
+			#os.system(cmd)
+			print(cmd)
 
 
 	def status(self):
+		
 		print("  port: " + str(self.port))
 		print("   dir: " + self.dir)
+		
 		i = 0
-		for dupe in self.dupeDirs:
-			if dupe == self.dir: continue
-			if i == 0: print("  dupe: " + dupe)
-			else: print("        " + dupe)
+		for check in self.checkDirs:
+			if check == self.dir: continue
+			if i == 0: print(" check: " + check,end="")
+			else: print("        " + check,end="")
+			if not os.path.isdir(check): print(" - not exists",end="")
+			print()
 			i += 1
 		print(" start: " + str(self.numero).zfill(3))
 
+
+	def renderWebPage(self,item,message):
+		
+		page = (
+			"<pre style='font-size:1.5em'>"
+			+ "<b>" 
+			+ message 
+			+ ", numero=" 
+			+ str( item.getNumero() ) 
+			+ "</b>"
+			+ "\n---\n"
+		)
+		
+		hilite = item.getId()
+
+		for id in self.queue:
+			
+			item = self.queue[id]
+			title = item.getTitle()
+
+			if id == hilite: page += "<b>"
+
+			page += str(item.getNumero()).zfill(3)		
+			page += " "
+			
+			if title is None:
+				page += "<i>"
+				page += "(queued, ID="
+				page += item.getId()
+				page += ")"
+				page += "</i>"
+			else:
+				page += title
+				
+			if id == hilite: page += "</b>"
+			page += "\n"
+		
+		return page
+		
 
 	def main(self):
 
 		self.setupPort()
 		self.checkYoutubeDl()
 		self.setupDir()
-		self.setupDupe()
-		self.discoverNumero()
+		self.setupCheck()
+		self.rescan()
 		self.about()
 		self.status()
-
-		sys.exit(0)
 
 		self.setDaemon(True)		
 		self.start()
@@ -223,15 +260,37 @@ class Youda(Thread):
 class Item:
 
 
-	def __item__(self):
+	def __init__(self):
 
 		self.name = None
 		self.title = None
 		self.numero = None
 		self.id = None
+		self.queued = False
 
 
-	def setName(self,name,parseId = False):
+	def getId(self):
+		return self.id
+		
+	
+	def setNumero(self,num):
+		self.numero = num
+		
+		
+	def getNumero(self):
+		return self.numero
+	
+	
+	def getTitle(self):
+		return self.title
+		
+	
+	def buildFromId(self,id):
+		self.id = id
+		return self
+		
+	
+	def buildFromName(self,name):
 
 		self.name = name
 
@@ -240,25 +299,33 @@ class Item:
 			name = name[4:]
 
 		length = len(name)
-		dot = None
-		for pos in [3,4,5]:
-			if name[length - pos] == ".": dot = length - pos
-		if dot is not None: name = name[:dot]
-
-		length = len(name)
-		id = None
-		for pos in [11,12]:
-			if name[length - pos] == "-": id = length - pos
-		if id is not None: 
-			self.id = name[id + 1:]
-			self.title = name[:id]
+		if name[-13:] == "-queued.youda": 
+			self.queued = True
+			self.id = name.split("-")[0]
+			
 		else:
-			self.title = name
 
-		if name.find("mesterl") == -1: return
-		self.dump()
+			dot = None
+			for pos in [3,4,5]:
+				if name[length - pos] == ".": dot = length - pos
+			if dot is not None: name = name[:dot]
 
-		if not parseId: return
+			length = len(name)
+			id = None
+			for pos in [11,12]:
+				if name[length - pos] == "-": id = length - pos
+			if id is not None: 
+				self.id = name[id + 1:]
+				self.title = name[:id]
+			else:
+				self.title = name
+
+		return self
+		
+		
+	def isInvalid(self):
+		if self.id is None: return True
+		return False
 
 
 	def dump(self):
@@ -288,6 +355,25 @@ class YoudaRequestHandler(BaseHTTPRequestHandler):
 		pass
 
 
+	def send(self,txt):
+		self.wfile.write(bytes(txt,"utf8"))
+
+
+	def parseUrl(self):
+
+		url = self.path.replace("?","&")
+		if url.find("&q=") == -1: return None
+		url = url.split("&q=")[1]
+		url = parse.unquote(url)
+
+		url = url.replace("?","&")
+		if url.find("&v=") == -1: return None
+		url = url.split("&v=")[1]
+		url = url.split("&")[0]
+
+		return url
+
+
 	def do_GET(self):
 
 		self.send_response(200)
@@ -295,20 +381,23 @@ class YoudaRequestHandler(BaseHTTPRequestHandler):
 		self.send_header("Content-type","text/html")
 		self.end_headers()
 
-		url = self.path.replace("?","&")
-		if url.find("&q=") == -1: return
-		url = url.split("&q=")[1]
-		url = parse.unquote(url)
+		id = self.parseUrl()
+		if id is None: 
+			self.send("hallo")
+			return
 
-		(already,numero) = self.server.theServer.enqueue(url)
+		item = self.server.theServer.findItem(id)
 
-		if already:
-			message = "<h3>Already added, numero=" + str(numero) + "</h3>\n"
+		if item is None:
+			item = (Item()).buildFromId(id)
+			self.server.theServer.enqueue(item)
+			message = "added to download queue"
+
 		else:
-			message = "<h3>Added to download queue, numero=" + str(numero) + "</h3>\n"
-		self.wfile.write(bytes(message,"utf8"))
+			message = "already added"
+
+		self.send( self.server.theServer.renderWebPage(item,message) );
 
 
 if __name__ == '__main__':
 	(Youda()).main()
-
