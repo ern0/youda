@@ -23,4 +23,11 @@ youda.py
   - in your browser, right-click in a YouTube link and <br />
     select custom context menu item you've added
   - this script will catch the URL and call youtube-dl with it
-  - do not abort the script until it finishes
+
+## Under the hood ##
+  - when you add a file, the web server thread creates a placeholder file
+  - the processing thread scans the directory, picks first placeholder file, 
+    then replaces it with the downloaded file
+  - upon counter overflow, the items above 555 will appear before others,
+    e.g. the order will be: 910, 911, 922, 930, 001, 002, 003
+  - because the queue is stored in files, script can be restarted

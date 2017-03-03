@@ -43,7 +43,14 @@ class Youda(Thread):
   - in your browser, right-click in a YouTube link and <br />
     select custom context menu item you've added
   - this script will catch the URL and call youtube-dl with it
-  - do not abort the script until it finishes
+
+## Under the hood ##
+  - when you add a file, the web server thread creates a placeholder file
+  - the processing thread scans the directory, picks first placeholder file, 
+    then replaces it with the downloaded file
+  - upon counter overflow, the items above 555 will appear before others,
+    e.g. the order will be: 910, 911, 922, 930, 001, 002, 003
+  - because the queue is stored in files, script can be restarted
 			"""
 		)
 
@@ -114,15 +121,55 @@ class Youda(Thread):
 		self.checkDirs.append(checkDir)
 
 
+	def restore(self):
+		
+		remnants = {}
+		
+		# collect remnants
+		for fnam in os.listdir(self.dir):
+			if fnam[-17:] != "-processing.youda": continue
+			remnants[fnam[0:3]] = fnam
+			
+		# process remnants	
+		for fnam in os.listdir(self.dir):
+			if fnam[-17:] == "-processing.youda": continue
+			if fnam[0:3] not in remnants: continue
+			
+			# remove remnant
+			os.remove(self.dir + "/" + fnam)
+			
+			# rename "~processing" back to "~queued"
+			pnam = remnants[fnam[0:3]]
+			qnam = pnam.replace("-processing.youda","-queued.youda")
+			os.rename(self.dir + "/" + pnam,self.dir + "/" + qnam)
+
+
 	def rescan(self):
 
-		self.queue = {}
+		self.queue = []
 		self.check = {}
 
+		overflow = False
 		for fnam in os.listdir(self.dir):
 			item = (Item()).buildFromName(fnam)
 			if item.isInvalid(): continue
-			self.queue[item.getId()] = item
+			if item.getNumero() < 555: continue
+			overflow = True
+			break
+			
+		if overflow:
+			for fnam in os.listdir(self.dir):
+				item = (Item()).buildFromName(fnam)
+				if item.isInvalid(): continue
+				if item.getNumero() < 555: continue
+				self.queue.append(item)
+				self.check[item.getId()] = item
+				
+		for fnam in os.listdir(self.dir):
+			item = (Item()).buildFromName(fnam)
+			if item.isInvalid(): continue
+			if item.getId() in self.check: continue
+			self.queue.append(item)
 			self.check[item.getId()] = item
 
 		for dir in self.checkDirs:
@@ -134,8 +181,9 @@ class Youda(Thread):
 		self.numero = 0
 		for id in self.check:
 			item = self.check[id]
-			if item.getNumero() > self.numero: 
-				self.numero = item.getNumero()		
+			num = item.getNumero()
+			if overflow and num >= 555: continue
+			if num > self.numero: self.numero = num		
 		self.numero += 1
 
 
@@ -209,18 +257,19 @@ class Youda(Thread):
 			+ ", numero=" 
 			+ str( item.getNumero() ) 
 			+ "</b>"
-			+ "\n---\n"
+			+ "\n----\n"
 		)
 		
 		hilite = item.getId()
 
-		for id in self.queue:
+		for item in self.queue:
+			id = item.getId()
 			
-			item = self.queue[id]
 			title = item.getTitle()
 
-			if id == hilite: page += "<b>"
+			if id == hilite: page += "<span style='color: #fff; background: #000'>"
 
+			page += " "
 			page += str(item.getNumero()).zfill(3)		
 			page += " "
 			
@@ -233,7 +282,7 @@ class Youda(Thread):
 			else:
 				page += title
 				
-			if id == hilite: page += "</b>"
+			if id == hilite: page += " </span>"
 			page += "\n"
 		
 		return page
@@ -245,6 +294,7 @@ class Youda(Thread):
 		self.checkYoutubeDl()
 		self.setupDir()
 		self.setupCheck()
+		self.restore()
 		self.rescan()
 		self.about()
 		self.status()
@@ -391,6 +441,7 @@ class YoudaRequestHandler(BaseHTTPRequestHandler):
 		if item is None:
 			item = (Item()).buildFromId(id)
 			self.server.theServer.enqueue(item)
+			self.server.rescan()
 			message = "added to download queue"
 
 		else:
