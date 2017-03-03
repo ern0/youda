@@ -10,7 +10,7 @@ youda.py
   - install a context-menu extension in your browser <br />
     e.g. Context Menus for Chrome https://goo.gl/8hgwuB
   - add a custom action for links, which sends the URL to <br />
-    http://localhost:8009/q=%s <br />
+    http://localhost:8009/?q=%s <br />
     where "%s" is the variable name for the selected URL
 
 ## How to use ##
