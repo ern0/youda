@@ -11,10 +11,10 @@ import queue
 
 
 class Youda(Thread):
-
+	
 
 	def about(self):
-		print("youda.py - Youtube Downloader Automation - 2017.02.28")
+		print("youda.py - Youtube Downloader Automation - 2017.03.03")
 
 
 	def help(self):
@@ -58,6 +58,12 @@ class Youda(Thread):
 		text = text.replace("<br />","")
 		print(text)
 		sys.exit(0)
+
+	
+	def __init__(self):
+		Thread.__init__(self)
+		self.rescanLock = Lock()
+		self.change = False
 
 
 	def fatal(self,msg):
@@ -114,7 +120,7 @@ class Youda(Thread):
 
 
 	def addCheckDir(self,checkDir):
-
+		
 		for dir in self.checkDirs:
 			if checkDir == dir: return
 
@@ -146,6 +152,8 @@ class Youda(Thread):
 
 	def rescan(self):
 
+		self.rescanLock.acquire()
+
 		self.queue = []
 		self.check = {}
 
@@ -172,11 +180,14 @@ class Youda(Thread):
 			self.queue.append(item)
 			self.check[item.getId()] = item
 
-		for dir in self.checkDirs:
-			for fnam in os.listdir(dir):
-				item = (Item()).buildFromName(fnam)
-				if item.isInvalid(): continue
-				self.check[item.getId()] = item
+		try:
+			for dir in self.checkDirs:
+				for fnam in os.listdir(dir):
+					item = (Item()).buildFromName(fnam)
+					if item.isInvalid(): continue
+					self.check[item.getId()] = item
+		except FileNotFoundError:
+			pass
 			
 		self.numero = 0
 		for id in self.check:
@@ -186,6 +197,8 @@ class Youda(Thread):
 			if num > self.numero: self.numero = num		
 		self.numero += 1
 
+		self.rescanLock.release()
+		
 
 	def findItem(self,id):
 		
@@ -202,7 +215,7 @@ class Youda(Thread):
 
 		fnam = self.dir
 		fnam += "/"
-		fnam += str(item.getNumero()).zfill(3)
+		fnam += item.getNumeroFmtd()
 		fnam += "-"
 		fnam += item.getId()
 		fnam += "-queued."
@@ -214,23 +227,75 @@ class Youda(Thread):
 		# make semaphore file creation atomic
 		os.rename(fnam + "tmp",fnam + "youda")
 		
+		self.change = True
+		
 
 	def run(self):
 		while True:
-			
+
+			# wait for next queued item
+			while True:
+				found = False
+				
+				# scan dir at startup and every ~10s
+				for fnam in os.listdir(self.dir):
+					if fnam[-13:] == "-queued.youda":
+						found = True
+						break
+
+				if found: break
+
+				# check for change in every 1 s
+				for i in range(0,9):
+					if self.change:
+						found = True
+						break
+
+				if found: break
+
+				time.sleep(1)
+				
+			# create item
+			item = None
+			for fnam in os.listdir(self.dir):
+				if fnam[-13:] != "-queued.youda": continue
+				item = (Item()).buildFromName(fnam)
+				break
+			if item is None: continue
+
+			# download item
+			self.downloadItem(item)
 			time.sleep(1)
-			continue
 
-			## (numero,url) = self.queue.get(block=True)
 
-			cmd = "youtube-dl \"<url>\" --exec \"mv {} <path>/<num>-{}\"" 
-			cmd = cmd.replace("<path>",self.dir)
-			cmd = cmd.replace("<url>",url)
-			cmd = cmd.replace("<num>",str(numero).zfill(3))
+	def downloadItem(self,item):
 
-			#os.system(cmd)
-			print(cmd)
+		print("----[ " + item.getNumeroFmtd() + " ]----")
 
+		basenam = self.dir 
+		basenam += "/" 
+		basenam += item.getNumeroFmtd()
+		basenam += "-" 
+		basenam += item.getId()
+		basenam += "-"
+			
+		pnam = basenam + "processing.youda"
+		qnam = basenam + "queued.youda"
+				
+		url = "http://www.youtube.com/watch?v=" + item.getId()
+		
+		cmd = "youtube-dl \"<url>\""
+		cmd += " -o \"<path>/<num>-%(title)s-%(id)s.%(ext)s\""
+		cmd = cmd.replace("<path>",self.dir)
+		cmd = cmd.replace("<url>",url)
+		cmd = cmd.replace("<num>",item.getNumeroFmtd())
+
+		os.rename(qnam,pnam)
+		os.system(cmd)
+		os.remove(pnam)
+
+		print("===============")
+		
 
 	def status(self):
 		
@@ -270,7 +335,7 @@ class Youda(Thread):
 			if id == hilite: page += "<span style='color: #fff; background: #000'>"
 
 			page += " "
-			page += str(item.getNumero()).zfill(3)		
+			page += item.getNumeroFmtd()
 			page += " "
 			
 			if title is None:
@@ -331,6 +396,10 @@ class Item:
 		return self.numero
 	
 	
+	def getNumeroFmtd(self):
+		return str(self.numero).zfill(3)
+		
+	
 	def getTitle(self):
 		return self.title
 		
@@ -374,6 +443,7 @@ class Item:
 		
 		
 	def isInvalid(self):
+		if self.numero is None: return True
 		if self.id is None: return True
 		return False
 
@@ -441,7 +511,7 @@ class YoudaRequestHandler(BaseHTTPRequestHandler):
 		if item is None:
 			item = (Item()).buildFromId(id)
 			self.server.theServer.enqueue(item)
-			self.server.rescan()
+			self.server.theServer.rescan()
 			message = "added to download queue"
 
 		else:
