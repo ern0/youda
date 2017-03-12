@@ -413,32 +413,36 @@ class Item:
 
 		self.name = name
 
-		if name[3] == "-":
-			self.numero = int(name[0:3])
-			name = name[4:]
+		try:
 
-		length = len(name)
-		if name[-13:] == "-queued.youda": 
-			self.queued = True
-			self.id = name[:-13]
-			
-		else:
-
-			dot = None
-			for pos in [3,4,5]:
-				if name[length - pos] == ".": dot = length - pos
-			if dot is not None: name = name[:dot]
+			if name[3] == "-":
+				self.numero = int(name[0:3])
+				name = name[4:]
 
 			length = len(name)
-			id = None
-			for pos in [11,12]:
-				if name[length - pos] == "-": id = length - pos
-			if id is not None: 
-				self.id = name[id + 1:]
-				self.title = name[:id]
+			if name[-13:] == "-queued.youda": 
+				self.queued = True
+				self.id = name[:-13]
+				
 			else:
-				self.title = name
 
+				dot = None
+				for pos in [3,4,5]:
+					if name[length - pos] == ".": dot = length - pos
+				if dot is not None: name = name[:dot]
+
+				length = len(name)
+				id = None
+				for pos in [11,12]:
+					if name[length - pos] == "-": id = length - pos
+				if id is not None: 
+					self.id = name[id + 1:]
+					self.title = name[:id]
+				else:
+					self.title = name
+
+		except IndexError: pass
+		
 		return self
 		
 		
