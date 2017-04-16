@@ -14,7 +14,7 @@ class Youda(Thread):
 	
 
 	def about(self):
-		print("youda.py - Youtube Downloader Automation - 2017.03.03")
+		print("youda.py - Youtube Downloader Automation - 2017.04.16")
 
 
 	def help(self):
@@ -48,8 +48,6 @@ class Youda(Thread):
   - when you add a file, the web server thread creates a placeholder file
   - the processing thread scans the directory, picks first placeholder file, 
     then replaces it with the downloaded file
-  - upon counter overflow, the items above 555 will appear before others,
-    e.g. the order will be: 910, 911, 922, 930, 001, 002, 003
   - because the queue is stored in files, script can be restarted
 			"""
 		)
@@ -157,22 +155,6 @@ class Youda(Thread):
 		self.queue = []
 		self.check = {}
 
-		overflow = False
-		for fnam in os.listdir(self.dir):
-			item = (Item()).buildFromName(fnam)
-			if item.isInvalid(): continue
-			if item.getNumero() < 555: continue
-			overflow = True
-			break
-			
-		if overflow:
-			for fnam in os.listdir(self.dir):
-				item = (Item()).buildFromName(fnam)
-				if item.isInvalid(): continue
-				if item.getNumero() < 555: continue
-				self.queue.append(item)
-				self.check[item.getId()] = item
-				
 		for fnam in os.listdir(self.dir):
 			item = (Item()).buildFromName(fnam)
 			if item.isInvalid(): continue
@@ -182,6 +164,7 @@ class Youda(Thread):
 
 		try:
 			for dir in self.checkDirs:
+				if os.path.isfile(dir): continue
 				for fnam in os.listdir(dir):
 					item = (Item()).buildFromName(fnam)
 					if item.isInvalid(): continue
@@ -193,9 +176,9 @@ class Youda(Thread):
 		for id in self.check:
 			item = self.check[id]
 			num = item.getNumero()
-			if overflow and num >= 555: continue
 			if num > self.numero: self.numero = num		
 		self.numero += 1
+		if self.numero > 999: self.numero = 1
 
 		self.rescanLock.release()
 		
@@ -411,6 +394,8 @@ class Item:
 	
 	def buildFromName(self,name):
 
+		if os.path.isfile(name): return self
+
 		self.name = name
 
 		try:
@@ -502,7 +487,7 @@ class YoudaRequestHandler(BaseHTTPRequestHandler):
 
 		self.send_response(200)
 
-		self.send_header("Content-type","text/html")
+		self.send_header("Content-type","text/html; charset=utf-8")
 		self.end_headers()
 
 		id = self.parseUrl()
