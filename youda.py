@@ -14,7 +14,7 @@ class Youda(Thread):
 	
 
 	def about(self):
-		print("youda.py - Youtube Downloader Automation - 2017.03.03")
+		print("youda.py - Youtube Downloader Automation - 2017.04.25")
 
 
 	def help(self):
@@ -48,8 +48,6 @@ class Youda(Thread):
   - when you add a file, the web server thread creates a placeholder file
   - the processing thread scans the directory, picks first placeholder file, 
     then replaces it with the downloaded file
-  - upon counter overflow, the items above 555 will appear before others,
-    e.g. the order will be: 910, 911, 922, 930, 001, 002, 003
   - because the queue is stored in files, script can be restarted
 			"""
 		)
@@ -61,7 +59,11 @@ class Youda(Thread):
 
 	
 	def __init__(self):
+		
 		Thread.__init__(self)
+
+		self.dir = "."
+		self.checkDirs = []
 		self.rescanLock = Lock()
 		self.change = False
 
@@ -109,8 +111,6 @@ class Youda(Thread):
 
 	def setupCheck(self):
 
-		self.checkDirs = []
-
 		arg = 4
 		while True:
 			try: checkDir = sys.argv[arg]
@@ -157,22 +157,6 @@ class Youda(Thread):
 		self.queue = []
 		self.check = {}
 
-		overflow = False
-		for fnam in os.listdir(self.dir):
-			item = (Item()).buildFromName(fnam)
-			if item.isInvalid(): continue
-			if item.getNumero() < 555: continue
-			overflow = True
-			break
-			
-		if overflow:
-			for fnam in os.listdir(self.dir):
-				item = (Item()).buildFromName(fnam)
-				if item.isInvalid(): continue
-				if item.getNumero() < 555: continue
-				self.queue.append(item)
-				self.check[item.getId()] = item
-				
 		for fnam in os.listdir(self.dir):
 			item = (Item()).buildFromName(fnam)
 			if item.isInvalid(): continue
@@ -182,6 +166,7 @@ class Youda(Thread):
 
 		try:
 			for dir in self.checkDirs:
+				if os.path.isfile(dir): continue
 				for fnam in os.listdir(dir):
 					item = (Item()).buildFromName(fnam)
 					if item.isInvalid(): continue
@@ -189,16 +174,28 @@ class Youda(Thread):
 		except FileNotFoundError:
 			pass
 			
-		self.numero = 0
+		lowNumero = 0
+		highNumero = 0
 		for id in self.check:
 			item = self.check[id]
 			num = item.getNumero()
-			if overflow and num >= 555: continue
-			if num > self.numero: self.numero = num		
-		self.numero += 1
+			if num < 500:
+				if num > lowNumero: lowNumero = num
+			else:
+				if num > highNumero: highNumero = num
+
+		if lowNumero == 0:
+			self.numero = 1 + highNumero
+		else:
+			self.numero = 1 + lowNumero
+		if self.numero == 1000: self.numero = 1 + lowNumero
 
 		self.rescanLock.release()
-		
+
+
+	def getNumero(self):
+		return self.numero		
+
 
 	def findItem(self,id):
 		
@@ -307,7 +304,9 @@ class Youda(Thread):
 			if check == self.dir: continue
 			if i == 0: print(" check: " + check,end="")
 			else: print("        " + check,end="")
-			if not os.path.isdir(check): print(" - not exists",end="")
+			if not os.path.isdir(check): 
+				if not os.path.isfile(check):
+					print(" - not exists",end="")
 			print()
 			i += 1
 		print(" start: " + str(self.numero).zfill(3))
@@ -411,34 +410,40 @@ class Item:
 	
 	def buildFromName(self,name):
 
+		if os.path.isfile(name): return self
+
 		self.name = name
 
-		if name[3] == "-":
-			self.numero = int(name[0:3])
-			name = name[4:]
+		try:
 
-		length = len(name)
-		if name[-13:] == "-queued.youda": 
-			self.queued = True
-			self.id = name[:-13]
-			
-		else:
-
-			dot = None
-			for pos in [3,4,5]:
-				if name[length - pos] == ".": dot = length - pos
-			if dot is not None: name = name[:dot]
+			if name[3] == "-":
+				self.numero = int(name[0:3])
+				name = name[4:]
 
 			length = len(name)
-			id = None
-			for pos in [11,12]:
-				if name[length - pos] == "-": id = length - pos
-			if id is not None: 
-				self.id = name[id + 1:]
-				self.title = name[:id]
+			if name[-13:] == "-queued.youda": 
+				self.queued = True
+				self.id = name[:-13]
+				
 			else:
-				self.title = name
 
+				dot = None
+				for pos in [3,4,5]:
+					if name[length - pos] == ".": dot = length - pos
+				if dot is not None: name = name[:dot]
+
+				length = len(name)
+				id = None
+				for pos in [11,12]:
+					if name[length - pos] == "-": id = length - pos
+				if id is not None: 
+					self.id = name[id + 1:]
+					self.title = name[:id]
+				else:
+					self.title = name
+
+		except IndexError: pass
+		
 		return self
 		
 		
@@ -498,7 +503,7 @@ class YoudaRequestHandler(BaseHTTPRequestHandler):
 
 		self.send_response(200)
 
-		self.send_header("Content-type","text/html")
+		self.send_header("Content-type","text/html; charset=utf-8")
 		self.end_headers()
 
 		id = self.parseUrl()
