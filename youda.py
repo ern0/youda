@@ -14,7 +14,7 @@ class Youda(Thread):
 	
 
 	def about(self):
-		print("youda.py - Youtube Downloader Automation - 2017.04.16")
+		print("youda.py - Youtube Downloader Automation - 2017.04.25")
 
 
 	def help(self):
@@ -59,7 +59,11 @@ class Youda(Thread):
 
 	
 	def __init__(self):
+		
 		Thread.__init__(self)
+
+		self.dir = "."
+		self.checkDirs = []
 		self.rescanLock = Lock()
 		self.change = False
 
@@ -106,8 +110,6 @@ class Youda(Thread):
 
 
 	def setupCheck(self):
-
-		self.checkDirs = []
 
 		arg = 4
 		while True:
@@ -181,7 +183,11 @@ class Youda(Thread):
 		if self.numero > 999: self.numero = 1
 
 		self.rescanLock.release()
-		
+
+
+	def getNumero(self):
+		return self.numero		
+
 
 	def findItem(self,id):
 		
