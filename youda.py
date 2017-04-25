@@ -174,13 +174,21 @@ class Youda(Thread):
 		except FileNotFoundError:
 			pass
 			
-		self.numero = 0
+		lowNumero = 0
+		highNumero = 0
 		for id in self.check:
 			item = self.check[id]
 			num = item.getNumero()
-			if num > self.numero: self.numero = num		
-		self.numero += 1
-		if self.numero > 999: self.numero = 1
+			if num < 500:
+				if num > lowNumero: lowNumero = num
+			else:
+				if num > highNumero: highNumero = num
+
+		if lowNumero == 0:
+			self.numero = 1 + highNumero
+		else:
+			self.numero = 1 + lowNumero
+		if self.numero == 1000: self.numero = 1 + lowNumero
 
 		self.rescanLock.release()
 
@@ -296,7 +304,9 @@ class Youda(Thread):
 			if check == self.dir: continue
 			if i == 0: print(" check: " + check,end="")
 			else: print("        " + check,end="")
-			if not os.path.isdir(check): print(" - not exists",end="")
+			if not os.path.isdir(check): 
+				if not os.path.isfile(check):
+					print(" - not exists",end="")
 			print()
 			i += 1
 		print(" start: " + str(self.numero).zfill(3))

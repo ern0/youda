@@ -16,7 +16,7 @@ class TestStringMethods(unittest.TestCase):
 
 		dir = tempfile.mkdtemp()
 		for num in fileList: 
-			nam = str(num).zfill(3) + "-test-xxxxxxxxxxx.mpg"
+			nam = str(num).zfill(3) + "-test-" + str(num).zfill(11) + ".mpg"
 			fnam = dir + "/" + nam
 			open(fnam,"a").close()
 
@@ -52,8 +52,8 @@ class TestStringMethods(unittest.TestCase):
 
 	def test_overflow(self):
 
+
 		self.assertEqual(self.rescan([933,999]),1)
-		self.assertEqual(self.rescan([999,1]),2)
 		self.assertEqual(self.rescan([999,1]),2)
 		self.assertEqual(self.rescan([999,1,4]),5)
 		self.assertEqual(self.rescan([600,999,1,4]),5)
