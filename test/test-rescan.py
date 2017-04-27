@@ -50,8 +50,7 @@ class TestStringMethods(unittest.TestCase):
 		self.assertEqual(self.rescan([501,502,540]),541)
 
 
-	def test_overflow(self):
-
+	def test_overflowhi(self):
 
 		self.assertEqual(self.rescan([933,999]),1)
 		self.assertEqual(self.rescan([999,1]),2)
@@ -59,6 +58,11 @@ class TestStringMethods(unittest.TestCase):
 		self.assertEqual(self.rescan([600,999,1,4]),5)
 		self.assertEqual(self.rescan([600,999,1,4]),5)
 		self.assertEqual(self.rescan([300,999,1,4]),301)
+
+
+	def test_overflowlo(self):
+
+		self.assertEqual(self.rescan([264,499,500,501,567]),568)
 
 
 if __name__ == '__main__':
