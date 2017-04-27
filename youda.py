@@ -186,9 +186,14 @@ class Youda(Thread):
 
 		if lowNumero == 0:
 			self.numero = 1 + highNumero
+		elif highNumero == 0:
+			self.numero = 1 + lowNumero
+		elif lowNumero == 499:
+			self.numero = 1 + highNumero
 		else:
 			self.numero = 1 + lowNumero
-		if self.numero == 1000: self.numero = 1 + lowNumero
+
+		if self.numero == 1000: self.numero = 1
 
 		self.rescanLock.release()
 
@@ -313,7 +318,7 @@ class Youda(Thread):
 			print()
 			i += 1
 
-		print(" start: " + str(self.numero).zfill(3))
+		print(" start: " + str(self.getNumero()).zfill(3))
 
 
 	def renderWebPage(self,item,message):
