@@ -15,11 +15,11 @@ youda.py
 
 ## Troubleshooting ##
 
-  - Update youtube-dl: <br/>
+  - update youtube-dl: <br/>
     youtube-dl -U
-  - If you got error message like "The TLS connection was non-properly terminated": <br/>
-    Solution: https://github.com/mpv-player/mpv/issues/4425 <br/>
-    Quick solution for Raspberry Pi: https://gist.github.com/enzanki-ars/7d67996a90883e928bc1dd2db7ef0351 <br/>
+  - if you got error message like "The TLS connection was non-properly terminated": <br/>
+    solution: https://github.com/mpv-player/mpv/issues/4425 <br/>
+    quick solution for Raspberry Pi: https://gist.github.com/enzanki-ars/7d67996a90883e928bc1dd2db7ef0351 <br/>
 
 ## How to use ##
   - start this script in a shell window: <br />
