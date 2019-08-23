@@ -13,6 +13,14 @@ youda.py
     http://localhost:8009/?q=%s <br />
     where "%s" is the variable name for the selected URL
 
+## Troubleshooting ##
+
+  - update youtube-dl: <br/>
+    youtube-dl -U
+  - if you got error message like "The TLS connection was non-properly terminated": <br/>
+    solution: https://github.com/mpv-player/mpv/issues/4425 <br/>
+    quick solution for Raspberry Pi: https://gist.github.com/enzanki-ars/7d67996a90883e928bc1dd2db7ef0351 <br/>
+
 ## How to use ##
   - start this script in a shell window: <br />
       youda.py port [download-dir [check-dir [check-dir...]]] <br />
